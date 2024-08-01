@@ -56,65 +56,71 @@ CustomEdgeT = Union[tuple[int, int, Array], tuple[int, int, Array, int]]
 
 
 def get_custom_edges(
-    basis_vectors, extent, site_offsets, pbc, atol, custom_edges: Sequence[CustomEdgeT]
+        unit_cell, L, basis, pbc, atol, lattice_points, custom_edges
 ):
     """Generates the edges described in `custom_edges` for all unit cells.
 
     See the docstring of `Lattice.__init__` for the syntax of `custom_edges."""
-    if not all([len(desc) in (3, 4) for desc in custom_edges]):
+    if not all([len(desc) in (1, 2) for desc in custom_edges]):
         raise ValueError(
             dedent(
                 """
-            custom_edges must be a list of tuples of length 3 or 4.
+            custom_edges must be a list of tuples of length 1 or 2.
             Every tuple must contain two sublattice indices (integers), a distance vector
             and can optionally include an integer to represent the color of that edge.
             """
             )
         )
 
+    def define_custom_edges(edge):
+        num_sl = len(basis)
+        sl1 = edge[0] % num_sl 
+        sl2 = edge[1] % num_sl
+        new_coords = lattice_points[edge[1]]-lattice_points[edge[0]]
+        return(sl1, sl2, new_coords)
+
     def translated_edges(sl1, sl2, distance, color):
         # get distance in terms of unit cells
-        d_cell = (distance + site_offsets[sl1] - site_offsets[sl2]) @ np.linalg.inv(
-            basis_vectors
+        d_cell = (distance + basis[sl1] - basis[sl2]) @ np.linalg.inv(
+            unit_cell
         )
 
         if not np.all(np.isclose(d_cell, np.rint(d_cell), rtol=0.0, atol=atol)):
             # error out
             msg = f"{distance} is invalid distance vector between sublattices {sl1}->{sl2}"
             # see if the user flipped the vector accidentally
-            d_cell = (distance + site_offsets[sl2] - site_offsets[sl1]) @ np.linalg.inv(
-                basis_vectors
+            d_cell = (distance + basis[sl2] - basis[sl1]) @ np.linalg.inv(
+                unit_cell
             )
             if np.all(np.isclose(d_cell, np.rint(d_cell), rtol=0.0, atol=atol)):
                 msg += f" (but valid {sl2}->{sl1})"
             raise ValueError(msg)
 
         d_cell = np.asarray(np.rint(d_cell), dtype=int)
-
         # catches self-referential and other unrealisable long edges
-        if not np.all(d_cell < extent):
+        if not np.all(d_cell < L):
             raise ValueError(
                 f"Distance vector {distance} does not fit into the lattice"
             )
 
         # Unit cells of starting points
         start_min = np.where(pbc, 0, np.maximum(0, -d_cell))
-        start_max = np.where(pbc, extent, extent - np.maximum(0, d_cell))
+        start_max = np.where(pbc, L, L - np.maximum(0, d_cell))
         start_ranges = [slice(lo, hi) for lo, hi in zip(start_min, start_max)]
-        start = np.mgrid[start_ranges].reshape(len(extent), -1).T
-        end = (start + d_cell) % extent
+        start = np.mgrid[start_ranges].reshape(len(L), -1).T
+        end = (start + d_cell) % L
 
         # Convert to site indices
-        print(start, sl1, extent, site_offsets)
-        start = site_to_idx((start, sl1), extent, site_offsets)
-        end = site_to_idx((end, sl2), extent, site_offsets)
-
+        start = site_to_idx((start, sl1), L, basis)
+        end = site_to_idx((end, sl2), L, basis)
         return [(*edge, color) for edge in zip(start, end)]
+
 
     colored_edges = []
     for i, desc in enumerate(custom_edges):
-        edge_data = desc[:3]
-        edge_color = desc[3] if len(desc) == 4 else i
+        edge = desc[0]
+        edge_color = desc[1] if len(desc) == 2 else i
+        edge_data = define_custom_edges(edge)
         colored_edges += translated_edges(*edge_data, edge_color)
     return colored_edges
 

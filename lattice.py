@@ -21,6 +21,7 @@ class Lattice:
             basis = np.zeros(self.unit_cell.shape[0])[None, :]
         self.basis = np.asarray(basis)
         self.pbc = pbc
+        self.custom_edges = custom_edges
         self.test_input_accuracy()
 
         if self.pbc:
@@ -30,7 +31,7 @@ class Lattice:
 
         self.coords, self.lattice_points = self.generate_grid(extra_shells)
 
-        if custom_edges is None:
+        if self.custom_edges is None:
             if neighbor_order is None:
                 neighbor_order = 1
             cutoff = neighbor_order * np.linalg.norm(self.unit_cell, axis=1).max() + distance_atol
@@ -47,8 +48,11 @@ class Lattice:
                 self.basis,
                 self.pbc,
                 distance_atol,
-                custom_edges,
+                self.lattice_points, 
+                self.custom_edges,
             )
+        self.vertices = max(max(e[0:2]) for e in self.edges) + 1
+
 
     def test_input_accuracy(self):
         for l in self.L:
@@ -61,6 +65,8 @@ class Lattice:
             )
         if self.unit_cell.shape[0] != self.unit_cell.shape[1]:
             raise ValueError("The number of primitive vectors must match their length")
+
+        
         ## Need to check if all the positions in basis are unique and also if the pbc is defined correctly.
                
     def generate_edges(self, cutoff, neighbor_order):
