@@ -13,12 +13,12 @@ print("Square")
 unit_cell = [[1,0], [0, 1]]
 basis = [[0,0]]
         
-L = [3,3]
-lattice_square = Lattice(L=L, unit_cell=unit_cell, basis=basis, neighbor_order=1)#, pbc=[True, True])
+L = [4,4]
+custom_edges = [[(0,1), 1.0], [(L[0],0), 2.0]]
+lattice_square = Lattice(L=L, unit_cell=unit_cell, basis=basis, custom_edges=custom_edges)#, pbc=[True, True])
 
 lattice_square.add_edge((0,4,0))
 lattice_square.plot_lattice()
-
 
 ### Rectangular Lattice
 print("Rectangular")

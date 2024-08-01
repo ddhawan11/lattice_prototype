@@ -2,7 +2,6 @@
 from typing import Union
 from collections.abc import Sequence
 from textwrap import dedent
-import jax
 import numpy as np
 
 def comparable(
@@ -38,21 +37,14 @@ def site_to_idx(coords, L, basis):
         basis_coords, sl = coords
     else:
         basis_coords, sl = coords[:, :-1], coords[:, -1]
-    
+
     # Accepts extended shells (For PBC)
     basis_coords = basis_coords % L
-    
     # Index difference between sites one lattice site apart in each direction 
     # len(site_offsets) for the last axis, as all sites in one cell are listed
     # factor of extent[-1] to the penultimate axis, etc.                                                                                              
     radix = np.cumprod([len(basis), *L[:0:-1]])[::-1]
     return basis_coords @ radix + sl
-
-
-Array = Union[np.ndarray, jax.Array]
-JaxArray = jax.Array
-
-CustomEdgeT = Union[tuple[int, int, Array], tuple[int, int, Array, int]]
 
 
 def get_custom_edges(
